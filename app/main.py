@@ -1,10 +1,12 @@
 """FastAPI application factory and entry point."""
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
+from app.config import get_settings
 from app.errors import register_error_handlers
 
 
@@ -15,6 +17,20 @@ def create_app() -> FastAPI:
         version=__version__,
         description="Deterministic cryptographic static-analysis backend.",
     )
+
+    # Local frontend development only. Credentials stay off, so the allow-list
+    # is a convenience, not a trust boundary; production origins come from
+    # CORS_ALLOWED_ORIGINS in the environment.
+    origins = get_settings().cors_origins
+    if origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+            allow_headers=["*"],
+        )
+
     register_error_handlers(app)
     app.include_router(api_router, prefix="/api/v1")
     # Unprefixed alias so process supervisors and load balancers can probe a

@@ -3,10 +3,82 @@
 import io
 import stat
 import struct
+import tempfile
 import zipfile
 from pathlib import Path
 
+from app.engine.ingestion.source import (
+    RepositoryReference,
+    SourceSnapshot,
+    compute_content_hash,
+    count_files,
+)
+
 TOP_LEVEL = "owner-repo-abc1234"
+
+ACCEPTANCE_SHA = "1f903f5ed2e5e316f345a927555e48535829d8de"
+
+
+class FakeCommitResolver:
+    """A CommitResolver that returns a fixed full SHA, or raises.
+
+    Lets the API's short-SHA path be exercised without a GitHub call.
+    """
+
+    def __init__(
+        self,
+        full_sha: str = ACCEPTANCE_SHA,
+        *,
+        fail_with: BaseException | None = None,
+    ) -> None:
+        self._full_sha = full_sha
+        self._fail_with = fail_with
+        self.calls = 0
+
+    async def resolve_commit(self, repository, commit_sha: str) -> str:
+        self.calls += 1
+        if self._fail_with is not None:
+            raise self._fail_with
+        return self._full_sha
+
+
+class FakeSourceProvider:
+    """A SourceProvider that materialises a fixed tree in a temp directory.
+
+    Lets the scan execution path be exercised end to end without touching the
+    network. ``fail_with`` makes ``fetch_commit`` raise instead, for the
+    failure-path tests.
+    """
+
+    def __init__(
+        self,
+        files: dict[str, bytes],
+        *,
+        commit_sha: str = ACCEPTANCE_SHA,
+        fail_with: BaseException | None = None,
+    ) -> None:
+        self._files = files
+        self._commit_sha = commit_sha
+        self._fail_with = fail_with
+        self.calls = 0
+        self.root_path: Path | None = None
+
+    async def fetch_commit(
+        self, repository: RepositoryReference, commit_sha: str
+    ) -> SourceSnapshot:
+        self.calls += 1
+        if self._fail_with is not None:
+            raise self._fail_with
+        root = Path(tempfile.mkdtemp(prefix="cryptiq-fake-source-"))
+        write_tree(root, self._files)
+        self.root_path = root
+        return SourceSnapshot(
+            root_path=root,
+            repository=repository,
+            commit_sha=self._commit_sha,
+            content_hash=compute_content_hash(root),
+            file_count=count_files(root),
+        )
 
 
 def build_zip(entries: dict[str, bytes], *, top_level: str | None = TOP_LEVEL) -> bytes:

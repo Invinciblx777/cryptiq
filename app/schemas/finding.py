@@ -216,3 +216,101 @@ class ReviewQueue(BaseModel):
     scan_id: str
     total: int
     items: list[ReviewQueueItem] = Field(default_factory=list)
+
+
+# --- Database-backed views -------------------------------------------------
+#
+# The schemas above are produced from the engine's ``AnalyzedFinding``. The
+# ones below are produced from the persisted rows (Finding + Evidence +
+# ImpactNode + ReviewItem). They keep the same canonical nesting, but a few
+# fields are not columns and are handled explicitly:
+#
+#   * inference.evidence_basis  -- not persisted; always null.
+#   * priority.score / reasons  -- not persisted; score null, reasons empty.
+#   * impact.relationships      -- edges are not persisted; always [].
+#
+# inference.rationale and the whole migration block are regenerated from the
+# persisted observed facts plus the persisted role, which are pure functions.
+
+
+class InferenceDetail(BaseModel):
+    """What the engine concluded, rebuilt from persisted columns.
+
+    ``evidence_basis`` is not persisted, so it is always null here.
+    """
+
+    role: CryptographicRole
+    confidence: MatchConfidence
+    rationale: str | None = None
+    evidence_basis: EvidenceBasis | None = None
+
+
+class PriorityDetail(BaseModel):
+    """The persisted migration-review band.
+
+    The numeric score and the reason list are not persisted, so ``score`` is
+    null and ``reasons`` is empty. The band is authoritative.
+    """
+
+    level: str
+    score: int | None = None
+    reasons: list[str] = Field(default_factory=list)
+
+
+class ImpactDetail(BaseModel):
+    """The persisted impact nodes. Edges are not persisted, so ``relationships`` is []."""
+
+    scope: ImpactScope
+    node_count: int
+    nodes: list[ImpactNodeRead] = Field(default_factory=list)
+    relationships: list[ImpactEdgeRead] = Field(default_factory=list)
+
+
+class FindingDetail(BaseModel):
+    """One persisted finding, complete, in the canonical nesting.
+
+    ``id`` is the database row id and is what ``GET /findings/{id}`` takes.
+    ``fingerprint`` is the cross-scan logical identity (unique within a scan),
+    so a client can follow the same finding from one scan to the next.
+    ``observed`` holds only checkable facts; ``inference`` never contains an
+    observed field.
+    """
+
+    id: str
+    fingerprint: str
+    scan_id: str
+    repository: RepositoryRef
+    commit_sha: str
+    observed: ObservedRead
+    inference: InferenceDetail
+    migration: MigrationRead
+    impact: ImpactDetail
+    priority: PriorityDetail
+    review: ReviewRead | None = None
+
+
+class FindingListItem(BaseModel):
+    """A persisted finding as a list row: the columns a results table needs.
+
+    ``id`` is the database row id (use it for ``GET /findings/{id}``);
+    ``fingerprint`` is the cross-scan logical identity.
+    """
+
+    id: str
+    fingerprint: str
+    scan_id: str
+    algorithm: str
+    primitive: str
+    library: str
+    api: str
+    operation: CryptoOperation
+    role: CryptographicRole
+    confidence: MatchConfidence
+    priority: str
+    review_path: PqcReviewPath
+    is_migration_candidate: bool
+    status: str
+    file_path: str
+    start_line: int
+    end_line: int
+    review_status: ReviewStatus | None = None

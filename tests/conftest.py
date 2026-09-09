@@ -27,6 +27,32 @@ def client() -> TestClient:
 
 
 @pytest.fixture
+def api_client(session_factory: sessionmaker) -> Iterator[TestClient]:
+    """A TestClient whose requests use the in-memory schema.
+
+    ``get_db`` is overridden to yield from the test session factory so an
+    endpoint and the test see the same rows.
+    """
+    from app.dependencies import get_db
+
+    app = create_app()
+
+    def _override_get_db() -> Iterator[Session]:
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = _override_get_db
+    # raise_server_exceptions=False so a deliberate 500 is asserted as a
+    # response, matching how the app behaves in production.
+    with TestClient(app, raise_server_exceptions=False) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
 def engine() -> Iterator[Engine]:
     """Return an in-memory SQLite engine with the full schema and FKs enforced."""
     engine = create_engine(
@@ -53,10 +79,19 @@ def engine() -> Iterator[Engine]:
 
 
 @pytest.fixture
-def session(engine: Engine) -> Iterator[Session]:
+def session_factory(engine: Engine) -> sessionmaker:
+    """Return a session factory bound to the in-memory schema.
+
+    The scan worker and execution service open and close their own sessions,
+    so they take a factory rather than a live session.
+    """
+    return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+
+@pytest.fixture
+def session(session_factory: sessionmaker) -> Iterator[Session]:
     """Return a session bound to the in-memory schema."""
-    factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
-    with factory() as session:
+    with session_factory() as session:
         yield session
 
 
@@ -122,3 +157,61 @@ def finding(session: Session, scan: Scan) -> Finding:
     session.add(finding)
     session.commit()
     return finding
+
+
+@pytest.fixture
+def seeded_scan(session_factory: sessionmaker) -> str:
+    """Persist a small completed scan through the real pipeline and return its id.
+
+    Two RSA findings (a sign and a key generation), each with evidence, impact
+    nodes and an OPEN review item. No network.
+    """
+    from app.db.repositories import apply_analysis_counts, persist_analysis
+    from app.engine.ingestion import IngestionLimits, RepositoryReference, SourceSnapshot
+    from app.engine.ingestion.service import build_result
+    from app.engine.pipeline import analyze_snapshot
+    from app.services import create_scan
+
+    reference = RepositoryReference(
+        provider="github",
+        owner="pyca",
+        name="cryptography",
+        canonical_url="https://github.com/pyca/cryptography",
+    )
+    commit = "1f903f5ed2e5e316f345a927555e48535829d8de"
+    imp = b"from cryptography.hazmat.primitives.asymmetric import rsa\n"
+    tree = {
+        "src/sign.py": imp
+        + b"class Signer:\n"
+        + b"    def run(self, key: rsa.RSAPrivateKey, data):\n"
+        + b"        return key.sign(data)\n",
+        "src/keys.py": imp + b"def build():\n    return rsa.generate_private_key()\n",
+    }
+    limits = IngestionLimits(
+        max_archive_bytes=1 << 20,
+        max_extracted_bytes=1 << 20,
+        max_files=100,
+        max_file_bytes=8192,
+    )
+
+    import tempfile
+    from pathlib import Path
+
+    from tests.support import write_tree
+
+    root = write_tree(Path(tempfile.mkdtemp(prefix="cryptiq-seed-")), tree)
+    snapshot = SourceSnapshot(
+        root_path=root, repository=reference, commit_sha=commit,
+        content_hash="0" * 64, file_count=len(tree),
+    )
+    result = analyze_snapshot(build_result(snapshot, limits), root)
+
+    with session_factory() as session:
+        scan = create_scan(session, repository=reference, commit_sha=commit).scan
+        with session.begin():
+            persist_analysis(session, scan, result)
+            apply_analysis_counts(scan, result)
+            from app.db.repositories import mark_completed
+
+            mark_completed(scan)
+        return scan.id

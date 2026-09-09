@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     ruleset_version: str = "0.3.0"
     pqc_ruleset_version: str = "0.2.0"
 
+    # Comma-separated list of browser origins allowed to call the API. The
+    # defaults cover the common local frontend dev servers; production origins
+    # are supplied through the environment, never hard-coded.
+    cors_allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Return the CORS allow-list as a list, empty entries dropped."""
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:

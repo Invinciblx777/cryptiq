@@ -98,6 +98,24 @@ class GitHubSourceProvider:
         )
         return snapshot
 
+    async def resolve_commit(
+        self,
+        repository: RepositoryReference,
+        commit_sha: str,
+    ) -> str:
+        """Resolve a 7-40 character ref to a verified full 40-character SHA.
+
+        One lightweight API call, no archive download. Used by the API to fill
+        the persisted Scan's ``commit_sha`` before any work is queued.
+        """
+        if repository.provider != PROVIDER:
+            raise UnsupportedProviderError(
+                f"Provider {repository.provider!r} is not supported."
+            )
+        requested = normalize_commit_sha(commit_sha)
+        async with self._client() as client:
+            return await self._resolve_commit(client, repository, requested)
+
     def _client(self) -> httpx.AsyncClient:
         """Return a client that never follows a redirect on its own."""
         return httpx.AsyncClient(

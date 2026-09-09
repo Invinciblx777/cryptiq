@@ -32,9 +32,34 @@ class NotFoundError(CryptiqError):
     code = "not_found"
 
 
+class ScanNotFoundError(NotFoundError):
+    """A scan id does not resolve to a stored scan."""
+
+    code = "SCAN_NOT_FOUND"
+
+
+class FindingNotFoundError(NotFoundError):
+    """A finding id does not resolve to a stored finding."""
+
+    code = "FINDING_NOT_FOUND"
+
+
+class ReviewItemNotFoundError(NotFoundError):
+    """A review id does not resolve to a stored review item."""
+
+    code = "REVIEW_ITEM_NOT_FOUND"
+
+
 class ValidationError(CryptiqError):
     status_code = 422
     code = "validation_error"
+
+
+class InvalidReviewTransitionError(CryptiqError):
+    """A review item was moved between states in a way the workflow forbids."""
+
+    status_code = 409
+    code = "INVALID_REVIEW_TRANSITION"
 
 
 class IngestionError(CryptiqError):
