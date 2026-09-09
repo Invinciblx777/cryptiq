@@ -1,8 +1,9 @@
 """ScanJob: the queued unit of work that executes a scan.
 
 The columns are shaped for a database-backed worker: a poller claims a QUEUED
-row, stamps locked_at, and increments attempt_count on each retry. The worker
-itself is a later phase.
+row, stamps locked_at and locked_by, and increments attempt_count on each
+retry until max_attempts is reached. The worker loop itself is a later phase;
+app.services.scan_jobs holds the transition rules it must obey.
 """
 
 from datetime import datetime
@@ -14,6 +15,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.database import Base
 from app.db.models.base import ID_LENGTH, CreatedAtMixin, UUIDPrimaryKeyMixin
 from app.db.models.enums import ScanJobStatus, enum_column
+
+# Bounded retries: a job that keeps failing must stop rather than spin.
+DEFAULT_MAX_ATTEMPTS = 3
 
 if TYPE_CHECKING:
     from app.db.models.scan import Scan
@@ -39,8 +43,14 @@ class ScanJob(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         default=ScanJobStatus.QUEUED,
     )
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=DEFAULT_MAX_ATTEMPTS
+    )
 
+    # Set together when a worker claims the row, so a stale lock can be
+    # reclaimed and the holder identified.
     locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    locked_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

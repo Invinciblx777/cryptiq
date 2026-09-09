@@ -29,5 +29,24 @@ curl http://localhost:8000/api/v1/health
 ## Tests
 
 ```bash
-pytest
+pytest                                    # unit, integration and security tests
+CRYPTIQ_RUN_NETWORK_TESTS=1 pytest -m network   # opt-in, reaches github.com
+ruff check .
 ```
+
+## Pipeline
+
+```
+Repository -> exact commit -> source snapshot -> file discovery
+  -> Python AST parser -> cryptographic rules -> source evidence
+  -> bounded impact -> migration review priority -> fingerprint
+```
+
+`app/engine/pipeline.py` runs the whole chain over one extracted snapshot.
+The snapshot exists only inside `async with ingest_commit(...)`, so every
+stage that reads source runs within that block.
+
+The `roles` and `pqc` stages are declared but not implemented: a finding
+carries no cryptographic role and no post-quantum review path yet.
+
+See `MERGE_AUDIT.md` for how this repository was assembled.

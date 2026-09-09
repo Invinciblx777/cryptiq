@@ -10,6 +10,7 @@ from alembic.config import Config
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BASELINE_REVISION = "dec2cc3d8453"
+DOMAIN_REVISION = "42c2c7f7e9dc"
 
 DOMAIN_TABLES = {
     "repositories",
@@ -51,6 +52,14 @@ def _index_names(config: Config, table: str) -> set[str]:
         connection.close()
 
 
+def _column_names(config: Config, table: str) -> set[str]:
+    connection = sqlite3.connect(config.attributes["db_path"])
+    try:
+        return {row[1] for row in connection.execute(f"pragma table_info('{table}')")}
+    finally:
+        connection.close()
+
+
 def _foreign_keys(config: Config, table: str) -> set[tuple[str, str, str]]:
     connection = sqlite3.connect(config.attributes["db_path"])
     try:
@@ -75,6 +84,16 @@ def test_downgrade_then_upgrade_restores_the_schema(alembic_config: Config) -> N
     command.upgrade(alembic_config, "head")
 
     assert DOMAIN_TABLES <= _table_names(alembic_config)
+
+
+def test_the_scan_job_worker_columns_are_added(alembic_config: Config) -> None:
+    command.upgrade(alembic_config, "head")
+
+    assert {"max_attempts", "locked_by"} <= _column_names(alembic_config, "scan_jobs")
+
+    command.downgrade(alembic_config, DOMAIN_REVISION)
+
+    assert not {"max_attempts", "locked_by"} & _column_names(alembic_config, "scan_jobs")
 
 
 def test_expected_indexes_exist(alembic_config: Config) -> None:
