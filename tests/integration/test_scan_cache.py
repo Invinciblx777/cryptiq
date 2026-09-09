@@ -13,7 +13,7 @@ def _identity(**overrides) -> ScanIdentity:
         "name": "cryptography",
         "commit_sha": "a" * 40,
         "parser_version": "python-ast-1",
-        "ruleset_version": "0.1.0",
+        "ruleset_version": "0.2.0",
         "pqc_ruleset_version": "0.1.0",
     }
     fields.update(overrides)

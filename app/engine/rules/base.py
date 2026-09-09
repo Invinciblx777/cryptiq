@@ -15,13 +15,21 @@ from app.engine.parser import Call, ParsedFile, SourceLocation
 
 
 class CryptoOperation(StrEnum):
-    """What a detected construct does with a key."""
+    """What a detected construct does.
+
+    ENCRYPT and DECRYPT cover both asymmetric and symmetric use; the algorithm
+    on the match says which. CONSTRUCTION is for building a primitive that is
+    not itself an operation on data, such as naming a cipher algorithm.
+    """
 
     KEY_GENERATION = "KEY_GENERATION"
+    KEY_ESTABLISHMENT = "KEY_ESTABLISHMENT"
     SIGN = "SIGN"
     VERIFY = "VERIFY"
     ENCRYPT = "ENCRYPT"
     DECRYPT = "DECRYPT"
+    CONSTRUCTION = "CONSTRUCTION"
+    HASH = "HASH"
 
 
 class MatchConfidence(StrEnum):
@@ -71,7 +79,7 @@ class RuleMatch:
     node: ast.AST | None = field(default=None, compare=False, repr=False)
 
     @property
-    def sort_key(self) -> tuple[str, int, int, str, str]:
+    def sort_key(self) -> tuple[str, int, int, str, str, str]:
         """The total order used wherever matches are collected."""
         return (
             self.file_path,
@@ -79,6 +87,7 @@ class RuleMatch:
             self.location.start_column,
             self.rule_id,
             self.api,
+            self.operation.value,
         )
 
 
@@ -100,6 +109,24 @@ class AnalysisContext:
     def call(self, node: ast.AST) -> Call | None:
         """Return the parsed call for a node of this file, if it is one."""
         return self._calls.get(id(node))
+
+    def index(self, rule_id: str, spec: Any) -> Any:
+        """Return this rule's binding index for the file, building it once."""
+        from app.engine.rules.resolution import build_index
+
+        cached = self.cache.get(rule_id)
+        if cached is None:
+            cached = build_index(self.file, spec)
+            self.cache[rule_id] = cached
+        return cached
+
+    def cached(self, key: str, build: Any) -> Any:
+        """Return a per-file value a rule computes once, building it on demand."""
+        value = self.cache.get(key)
+        if value is None:
+            value = build(self.file)
+            self.cache[key] = value
+        return value
 
 
 class CryptoRule(Protocol):

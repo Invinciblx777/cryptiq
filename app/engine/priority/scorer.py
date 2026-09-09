@@ -56,8 +56,13 @@ OPERATION_POINTS = {
     CryptoOperation.SIGN: 30,
     CryptoOperation.VERIFY: 30,
     CryptoOperation.KEY_GENERATION: 30,
+    CryptoOperation.KEY_ESTABLISHMENT: 30,
     CryptoOperation.ENCRYPT: 25,
     CryptoOperation.DECRYPT: 25,
+    # Naming a primitive is inventory, not an operation on data, and a hash is
+    # reviewed on its own terms rather than migrated.
+    CryptoOperation.CONSTRUCTION: 10,
+    CryptoOperation.HASH: 10,
 }
 
 # A graph reaching a class or a module, not just a function, is broader.

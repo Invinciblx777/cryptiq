@@ -4,9 +4,15 @@ An explicit table of the rules the engine runs. Rules register themselves here
 at import time; nothing is discovered from repository content.
 """
 
+from app.engine.rules.aes import AesRule
 from app.engine.rules.base import CryptoRule
+from app.engine.rules.ecdh import EcdhRule
+from app.engine.rules.ecdsa import EcdsaRule
+from app.engine.rules.ed25519 import Ed25519Rule
+from app.engine.rules.hashes import HashRule
 from app.engine.rules.rsa import RULE_ID as RSA_RULE_ID
 from app.engine.rules.rsa import RsaRule
+from app.engine.rules.x25519 import X25519Rule
 
 _RULES: dict[str, CryptoRule] = {}
 
@@ -31,7 +37,16 @@ def registered_rule_ids() -> tuple[str, ...]:
     return tuple(sorted(_RULES))
 
 
-register(RsaRule())
+for _rule in (
+    RsaRule(),
+    EcdsaRule,
+    Ed25519Rule,
+    EcdhRule,
+    X25519Rule,
+    AesRule(),
+    HashRule(),
+):
+    register(_rule)
 
 __all__ = [
     "RSA_RULE_ID",

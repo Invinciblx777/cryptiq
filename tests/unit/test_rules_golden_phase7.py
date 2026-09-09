@@ -1,4 +1,4 @@
-"""The golden fixtures produce exactly the expected observations."""
+"""The Phase 7 golden fixtures produce exactly the expected observations."""
 
 from pathlib import Path
 
@@ -6,7 +6,7 @@ import pytest
 
 from app.engine.parser import PythonParser
 from app.engine.rules import evaluate_file
-from tests.golden.expected import EXPECTED
+from tests.golden.expected_phase7 import EXPECTED
 
 GOLDEN = Path(__file__).resolve().parents[1] / "golden"
 
@@ -21,12 +21,13 @@ def as_tuples(matches):
     return tuple(
         (
             match.location.start_line,
+            match.rule_id,
+            match.algorithm,
             match.api,
             match.operation.value,
             match.confidence.value,
             match.evidence_basis.value,
             match.enclosing_function,
-            match.enclosing_class,
         )
         for match in matches
     )
@@ -38,13 +39,11 @@ def test_a_fixture_matches_its_expected_observations(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", sorted(EXPECTED))
-def test_every_observation_is_a_complete_rsa_record(name: str) -> None:
+def test_every_observation_is_complete(name: str) -> None:
     for match in observations(name):
-        assert match.rule_id == "PY-CRYPTO-RSA"
-        assert match.algorithm == "RSA"
-        assert match.primitive == "RSA"
         assert match.library == "cryptography"
         assert match.ruleset_version == "0.2.0"
+        assert match.primitive
         assert match.file_path == f"tests/golden/{name}"
         assert match.location.end_line >= match.location.start_line
 
@@ -52,3 +51,12 @@ def test_every_observation_is_a_complete_rsa_record(name: str) -> None:
 @pytest.mark.parametrize("name", sorted(EXPECTED))
 def test_a_fixture_is_evaluated_deterministically(name: str) -> None:
     assert as_tuples(observations(name)) == as_tuples(observations(name))
+
+
+@pytest.mark.parametrize("name", sorted(EXPECTED))
+def test_no_call_node_is_reported_twice_by_one_rule(name: str) -> None:
+    seen: set[tuple[int, str]] = set()
+    for match in observations(name):
+        key = (id(match.node), match.rule_id)
+        assert key not in seen
+        seen.add(key)

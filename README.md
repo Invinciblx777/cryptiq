@@ -46,6 +46,9 @@ Repository -> exact commit -> source snapshot -> file discovery
 The snapshot exists only inside `async with ingest_commit(...)`, so every
 stage that reads source runs within that block.
 
+Rules implemented: RSA, ECDSA, Ed25519, ECDH, X25519, AES and hashes, all
+against the Python `cryptography` library.
+
 The `roles` and `pqc` stages are declared but not implemented: a finding
 carries no cryptographic role and no post-quantum review path yet.
 

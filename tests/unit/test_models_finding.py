@@ -93,7 +93,7 @@ def test_evidence_records_the_commit_and_versions(finding: Finding) -> None:
 
     assert evidence.repository_sha == "a" * 40
     assert evidence.parser_version == "python-ast-1"
-    assert evidence.ruleset_version == "0.1.0"
+    assert evidence.ruleset_version == "0.2.0"
     assert isinstance(evidence.retrieved_at, datetime)
 
 

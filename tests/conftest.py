@@ -110,7 +110,7 @@ def build_finding(scan_id: str, **overrides: object) -> Finding:
         source_excerpt="rsa.generate_private_key(public_exponent=65537, key_size=2048)",
         rule_id="rsa-key-generation",
         parser_version="python-ast-1",
-        ruleset_version="0.1.0",
+        ruleset_version="0.2.0",
     )
     return finding
 

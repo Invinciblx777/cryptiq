@@ -64,6 +64,13 @@ HASH_ALGORITHMS = frozenset(
         "SHA-384",
         "SHA-512",
         "SHA-3",
+        "SHA3-224",
+        "SHA3-256",
+        "SHA3-384",
+        "SHA3-512",
+        "SHAKE128",
+        "SHAKE256",
+        "SM3",
         "MD5",
         "BLAKE2B",
         "BLAKE2S",
@@ -71,4 +78,4 @@ HASH_ALGORITHMS = frozenset(
 )
 
 # Hashes with known classical weaknesses, worth flagging on their own merits.
-LEGACY_HASH_ALGORITHMS = frozenset({"SHA-1", "MD5"})
+LEGACY_HASH_ALGORITHMS = frozenset({"SHA-1", "MD5", "MD4"})

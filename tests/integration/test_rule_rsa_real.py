@@ -40,8 +40,16 @@ async def test_real_rsa_usage_is_found(rsa_matches) -> None:
 
     assert matches
     assert len({match.file_path for match in matches}) > 1
-    # Every operation the rule knows about is exercised by this commit.
-    assert {match.operation for match in matches} == set(CryptoOperation)
+    # Every operation the RSA rule knows about is exercised by this commit.
+    # The engine's vocabulary is wider; the other members belong to the rules
+    # this test deliberately does not run.
+    assert {match.operation for match in matches} == {
+        CryptoOperation.KEY_GENERATION,
+        CryptoOperation.SIGN,
+        CryptoOperation.VERIFY,
+        CryptoOperation.ENCRYPT,
+        CryptoOperation.DECRYPT,
+    }
 
 
 async def test_every_observation_is_a_well_formed_rsa_record(rsa_matches) -> None:

@@ -107,12 +107,28 @@ def test_the_algorithm_name_is_matched_case_insensitively() -> None:
 
 @pytest.mark.parametrize("operation", list(CryptoOperation))
 def test_every_operation_contributes_points(operation: CryptoOperation) -> None:
+    from app.engine.priority.scorer import OPERATION_POINTS
+
     match, _ = rsa_match()
 
     result = score(replace(match, operation=operation))
 
-    assert result.score >= 30 + 40 + 25
+    assert result.score == 30 + 40 + OPERATION_POINTS[operation]
     assert any(operation.value in reason for reason in result.reasons)
+
+
+def test_key_operations_outrank_inventory_operations() -> None:
+    """Naming a primitive is inventory; using a key is what gets reviewed."""
+    from app.engine.priority.scorer import OPERATION_POINTS
+
+    for key_operation in (
+        CryptoOperation.SIGN,
+        CryptoOperation.VERIFY,
+        CryptoOperation.KEY_GENERATION,
+        CryptoOperation.KEY_ESTABLISHMENT,
+    ):
+        assert OPERATION_POINTS[key_operation] > OPERATION_POINTS[CryptoOperation.CONSTRUCTION]
+        assert OPERATION_POINTS[key_operation] > OPERATION_POINTS[CryptoOperation.HASH]
 
 
 def test_every_reason_is_a_fixed_string_not_generated_prose() -> None:

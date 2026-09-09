@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     gemini_max_output_tokens: int = 1500
 
     parser_version: str = "python-ast-1"
-    ruleset_version: str = "0.1.0"
+    ruleset_version: str = "0.2.0"
     pqc_ruleset_version: str = "0.1.0"
 
 
