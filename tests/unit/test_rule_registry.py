@@ -38,7 +38,7 @@ def test_each_rule_is_reachable_and_versioned(rule_id: str) -> None:
 
     assert rule is not None
     assert rule.rule_id == rule_id
-    assert rule.version == "0.2.0"
+    assert rule.version == "0.3.0"
 
 
 def test_the_rsa_rule_is_unchanged() -> None:

@@ -39,15 +39,18 @@ class ScanJobStatus(StrEnum):
 
 
 class CryptographicRole(StrEnum):
-    """What a detected construct does cryptographically."""
+    """What a detected construct does cryptographically.
 
-    SIGNATURE = "SIGNATURE"
-    KEY_EXCHANGE = "KEY_EXCHANGE"
-    ENCRYPTION = "ENCRYPTION"
+    The values match ``app.engine.roles.CryptographicRole``, which is the
+    vocabulary the classifier produces. A role is an inference, so a stored
+    finding keeps it apart from the observed algorithm and API.
+    """
+
+    DIGITAL_SIGNATURE = "DIGITAL_SIGNATURE"
+    KEY_ESTABLISHMENT = "KEY_ESTABLISHMENT"
+    SYMMETRIC_ENCRYPTION = "SYMMETRIC_ENCRYPTION"
     HASH = "HASH"
-    KEY_DERIVATION = "KEY_DERIVATION"
-    RANDOMNESS = "RANDOMNESS"
-    CERTIFICATE = "CERTIFICATE"
+    PROTOCOL = "PROTOCOL"
     UNKNOWN = "UNKNOWN"
 
 
@@ -136,10 +139,13 @@ def enum_column(enum_class: type[StrEnum], constraint_name: str) -> SAEnum:
 
     Native database enums are avoided: PostgreSQL would need a CREATE TYPE and
     SQLite has none, so a named check constraint keeps one schema for both.
+    ``create_constraint`` is explicit because SQLAlchemy defaults it to False,
+    which would leave the values enforced only in Python.
     """
     return SAEnum(
         enum_class,
         native_enum=False,
+        create_constraint=True,
         length=32,
         validate_strings=True,
         name=constraint_name,

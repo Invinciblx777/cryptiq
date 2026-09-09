@@ -27,7 +27,7 @@ def test_finding_persists_its_columns(finding: Finding) -> None:
     assert finding.file_path == "src/keys.py"
     assert finding.start_line == 10
     assert finding.end_line == 12
-    assert finding.role is CryptographicRole.SIGNATURE
+    assert finding.role is CryptographicRole.DIGITAL_SIGNATURE
     assert finding.confidence is Confidence.HIGH
     assert finding.priority is ReviewPriority.HIGH
     assert finding.status is FindingStatus.ACTIVE
@@ -78,7 +78,7 @@ def test_a_finding_cannot_be_persisted_without_evidence(session: Session, scan: 
             file_path="src/keys.py",
             start_line=1,
             end_line=1,
-            role=CryptographicRole.SIGNATURE,
+            role=CryptographicRole.DIGITAL_SIGNATURE,
             confidence=Confidence.HIGH,
             priority=ReviewPriority.HIGH,
         )
@@ -93,7 +93,7 @@ def test_evidence_records_the_commit_and_versions(finding: Finding) -> None:
 
     assert evidence.repository_sha == "a" * 40
     assert evidence.parser_version == "python-ast-1"
-    assert evidence.ruleset_version == "0.2.0"
+    assert evidence.ruleset_version == "0.3.0"
     assert isinstance(evidence.retrieved_at, datetime)
 
 

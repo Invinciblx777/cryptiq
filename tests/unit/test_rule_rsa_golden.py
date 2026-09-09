@@ -44,7 +44,7 @@ def test_every_observation_is_a_complete_rsa_record(name: str) -> None:
         assert match.algorithm == "RSA"
         assert match.primitive == "RSA"
         assert match.library == "cryptography"
-        assert match.ruleset_version == "0.2.0"
+        assert match.ruleset_version == "0.3.0"
         assert match.file_path == f"tests/golden/{name}"
         assert match.location.end_line >= match.location.start_line
 

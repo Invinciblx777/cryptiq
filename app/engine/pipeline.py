@@ -16,8 +16,12 @@ from app.engine.impact import ImpactResult
 from app.engine.impact import analyze as analyze_impact
 from app.engine.ingestion import IngestionResult, RepositoryReference
 from app.engine.parser import parse_all
+from app.engine.pqc import PqcAssessment
+from app.engine.pqc import map_review_path as map_pqc
 from app.engine.priority import PriorityResult
 from app.engine.priority import score as score_priority
+from app.engine.roles import RoleAssessment
+from app.engine.roles import classify as classify_role
 from app.engine.rules import CryptoRule, RuleMatch, evaluate_files
 
 logger = logging.getLogger(__name__)
@@ -25,10 +29,18 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AnalyzedFinding:
-    """One observation with everything the deterministic stages established."""
+    """One observation with everything the deterministic stages established.
+
+    ``match`` and ``evidence`` are observed: a reviewer can check both against
+    the file. ``role`` is inferred from them. ``pqc``, ``impact`` and
+    ``priority`` are derived from the inference. Nothing after the rule stage
+    ever changes an observed fact.
+    """
 
     match: RuleMatch
     evidence: Evidence
+    role: RoleAssessment
+    pqc: PqcAssessment
     impact: ImpactResult
     priority: PriorityResult
     fingerprint: str
@@ -108,12 +120,15 @@ def _build(
         logger.warning("dropping a match whose source could not be read")
         return None
 
+    role = classify_role(match)
     impact = analyze_impact(match, modules.get(match.file_path))
     return AnalyzedFinding(
         match=match,
         evidence=evidence,
+        role=role,
+        pqc=map_pqc(match.algorithm, role.role),
         impact=impact,
-        priority=score_priority(match, impact),
+        priority=score_priority(match, impact, role.role),
         fingerprint=finding_fingerprint(
             repository=_repository_key(ingestion.repository),
             file_path=match.file_path,

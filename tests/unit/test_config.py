@@ -15,8 +15,8 @@ def test_defaults_match_the_documented_limits() -> None:
     assert settings.max_file_bytes == 5 * 1024 * 1024
     assert settings.scan_timeout_seconds == 300
     assert settings.parser_version == "python-ast-1"
-    assert settings.ruleset_version == "0.2.0"
-    assert settings.pqc_ruleset_version == "0.1.0"
+    assert settings.ruleset_version == "0.3.0"
+    assert settings.pqc_ruleset_version == "0.2.0"
 
 
 def test_no_secret_is_hard_coded() -> None:

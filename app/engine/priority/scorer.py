@@ -17,6 +17,7 @@ from app.engine.priority.rules import (
     PQC_ALGORITHMS,
     SYMMETRIC_ALGORITHMS,
 )
+from app.engine.roles import CryptographicRole
 from app.engine.rules import CryptoOperation, MatchConfidence, RuleMatch
 
 
@@ -50,6 +51,17 @@ SYMMETRIC_POINTS = 15
 UNCLASSIFIED_POINTS = 10
 BROAD_IMPACT_POINTS = 10
 
+# Roles whose risk outlives the operation: a signature made today can be
+# forged later, and traffic protected by a key agreed today can be captured
+# now and read later. A finding in one of these roles scores as a key
+# operation even when its own operation would score lower -- RSA key
+# transport is spelled ``encrypt`` but is key establishment.
+LONG_LIVED_ROLES = frozenset(
+    {CryptographicRole.DIGITAL_SIGNATURE, CryptographicRole.KEY_ESTABLISHMENT}
+)
+
+KEY_OPERATION_POINTS = 30
+
 # Operations that carry long-lived risk: a signature or a key agreement made
 # today can be attacked later, so they lead the review queue.
 OPERATION_POINTS = {
@@ -81,8 +93,18 @@ class PriorityResult:
     reasons: tuple[str, ...]
 
 
-def score(match: RuleMatch, impact: ImpactResult | None = None) -> PriorityResult:
-    """Return the migration review priority of one observation."""
+def score(
+    match: RuleMatch,
+    impact: ImpactResult | None = None,
+    role: CryptographicRole | None = None,
+) -> PriorityResult:
+    """Return the migration review priority of one observation.
+
+    The role is an additional input, never the whole answer: it raises an
+    operation whose spelling understates its risk, and it is recorded in the
+    reasons. The algorithm family, the confidence and the blast radius still
+    carry the rest of the score.
+    """
     algorithm = match.algorithm.strip().upper()
     reasons: list[str] = []
     points = 0
@@ -103,9 +125,16 @@ def score(match: RuleMatch, impact: ImpactResult | None = None) -> PriorityResul
     points += _algorithm_points(algorithm, reasons)
 
     operation_points = OPERATION_POINTS.get(match.operation, 0)
+    if role in LONG_LIVED_ROLES and operation_points < KEY_OPERATION_POINTS:
+        operation_points = KEY_OPERATION_POINTS
+        reasons.append(f"{match.operation.value} operation in the role {role.value}.")
+    elif operation_points:
+        reasons.append(f"{match.operation.value} operation.")
     if operation_points:
         points += operation_points
-        reasons.append(f"{match.operation.value} operation.")
+
+    if role is not None and role is not CryptographicRole.UNKNOWN:
+        reasons.append(f"Classified as {role.value}.")
 
     if impact is not None and impact.node_count >= BROAD_IMPACT_NODES:
         points += BROAD_IMPACT_POINTS

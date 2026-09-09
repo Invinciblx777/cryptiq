@@ -49,7 +49,12 @@ stage that reads source runs within that block.
 Rules implemented: RSA, ECDSA, Ed25519, ECDH, X25519, AES and hashes, all
 against the Python `cryptography` library.
 
-The `roles` and `pqc` stages are declared but not implemented: a finding
-carries no cryptographic role and no post-quantum review path yet.
+A finding separates what was observed from what was inferred: the algorithm,
+API, location and source excerpt can be checked against the file, while the
+cryptographic role, the post-quantum review path, the impact and the priority
+follow from them. `FRONTEND_BACKEND_CONTRACT.md` records the response shape.
+
+Not implemented: persistence of findings, the scan API, the worker loop and
+explanation generation.
 
 See `MERGE_AUDIT.md` for how this repository was assembled.

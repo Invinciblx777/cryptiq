@@ -42,7 +42,7 @@ def test_a_fixture_matches_its_expected_observations(name: str) -> None:
 def test_every_observation_is_complete(name: str) -> None:
     for match in observations(name):
         assert match.library == "cryptography"
-        assert match.ruleset_version == "0.2.0"
+        assert match.ruleset_version == "0.3.0"
         assert match.primitive
         assert match.file_path == f"tests/golden/{name}"
         assert match.location.end_line >= match.location.start_line

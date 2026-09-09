@@ -156,3 +156,72 @@ def test_the_engine_bands_are_a_subset_of_the_persisted_vocabulary() -> None:
     assert {level.value for level in ReviewPriority} == {
         level.value for level in StoredPriority
     }
+
+
+# --- role as an input -------------------------------------------------------
+
+
+def test_the_role_appears_in_the_reasons() -> None:
+    from app.engine.roles import CryptographicRole
+
+    match, _ = rsa_match()
+
+    result = score(match, None, CryptographicRole.KEY_ESTABLISHMENT)
+
+    assert any("KEY_ESTABLISHMENT" in reason for reason in result.reasons)
+
+
+def test_an_unknown_role_adds_no_reason() -> None:
+    from app.engine.roles import CryptographicRole
+
+    match, _ = rsa_match()
+
+    with_unknown = score(match, None, CryptographicRole.UNKNOWN)
+    without = score(match, None)
+
+    assert with_unknown.score == without.score
+    assert not any("Classified as" in reason for reason in with_unknown.reasons)
+
+
+def test_key_transport_scores_as_a_key_operation() -> None:
+    """RSA encrypt is spelled ENCRYPT but is key establishment."""
+    from app.engine.roles import CryptographicRole
+
+    match, _ = rsa_match()
+    encrypting = replace(match, operation=CryptoOperation.ENCRYPT)
+
+    plain = score(encrypting, None)
+    as_key_establishment = score(encrypting, None, CryptographicRole.KEY_ESTABLISHMENT)
+
+    assert plain.score == 30 + 40 + 25
+    assert as_key_establishment.score == 30 + 40 + 30
+
+
+def test_a_role_never_raises_an_operation_that_already_scores_higher() -> None:
+    from app.engine.roles import CryptographicRole
+
+    match, _ = rsa_match()
+    signing = replace(match, operation=CryptoOperation.SIGN)
+
+    assert score(signing, None, CryptographicRole.DIGITAL_SIGNATURE).score == score(
+        signing, None
+    ).score
+
+
+def test_a_role_alone_does_not_decide_the_priority() -> None:
+    """A hash classified HASH still scores by its algorithm family."""
+    from app.engine.roles import CryptographicRole
+
+    match, _ = rsa_match()
+    hashing = replace(
+        match, algorithm="SHA-256", primitive="HASH", operation=CryptoOperation.HASH
+    )
+
+    result = score(hashing, None, CryptographicRole.HASH)
+    signing = score(replace(match, operation=CryptoOperation.SIGN), None,
+                    CryptographicRole.DIGITAL_SIGNATURE)
+
+    assert result.score == 30 + 15 + 10
+    assert result.level is ReviewPriority.MEDIUM
+    assert result.score < signing.score
+    assert not any("Shor" in reason for reason in result.reasons)

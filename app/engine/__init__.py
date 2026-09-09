@@ -1,12 +1,18 @@
 """Deterministic cryptographic analysis engine.
 
 Pipeline stages, in order: ingestion, discovery, parser, rules, evidence,
-impact, priority, fingerprints. Each stage is a separate subpackage and
-consumes only the output of the stage before it. ``pipeline`` runs them over
-one extracted snapshot.
+roles, pqc, impact, priority, fingerprints. Each stage is a separate
+subpackage and consumes only the output of the stage before it. ``pipeline``
+runs them over one extracted snapshot.
 
-The roles and pqc stages are declared but not implemented; a finding therefore
-carries no cryptographic role and no post-quantum review path yet.
+The stages divide into three kinds, and the division is part of the contract:
+
+* **observed** -- rules and evidence. A reviewer can check these against the
+  file. The algorithm, the API, the location and the source excerpt.
+* **inferred** -- roles. What the engine concludes the construct is for.
+* **derived** -- pqc, impact and priority. Consequences of the inference.
+
+Nothing after the rule stage changes an observed fact.
 """
 
 from app.engine.engine import engine_versions

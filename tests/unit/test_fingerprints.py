@@ -83,7 +83,7 @@ IDENTITY = ScanIdentity(
     commit_sha="1f903f5ed2e5e316f345a927555e48535829d8de",
     parser_version="python-ast-1",
     ruleset_version="0.1.0",
-    pqc_ruleset_version="0.1.0",
+    pqc_ruleset_version="0.2.0",
 )
 
 
@@ -95,7 +95,7 @@ def test_a_scan_identity_is_deterministic_and_normalized() -> None:
         commit_sha=IDENTITY.commit_sha.upper(),
         parser_version="python-ast-1",
         ruleset_version="0.1.0",
-        pqc_ruleset_version="0.1.0",
+        pqc_ruleset_version="0.2.0",
     )
 
     assert upper.canonical_key == IDENTITY.canonical_key
